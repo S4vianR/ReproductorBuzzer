@@ -200,6 +200,9 @@ namespace ReproductorBuzzer
                 statusTextBox.Text = "No conectado a Arduino. Usando música local" + Environment.NewLine;
                 usingLocalMusic = true;
             }
+
+            // Mandar al llamar al evento clearButton_Click
+            clearButton_Click(sender, e); // Limpiar el TextBox de selección de canción
         }
 
 
@@ -291,5 +294,132 @@ namespace ReproductorBuzzer
             return tempPath;
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            // Escribir un 1 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("1" + Environment.NewLine);
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            // Escribir un 2 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("2" + Environment.NewLine);
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            // Escribir un 3 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("3" + Environment.NewLine);
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            // Escribir un 4 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("4" + Environment.NewLine);
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            // Escribir un 5 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("5" + Environment.NewLine);
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            // Escribir un 6 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("6" + Environment.NewLine);
+        }
+
+        private void button7_Click(object sender, EventArgs e)
+        {
+            // Escribir un 7 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("7" + Environment.NewLine);
+        }
+
+        private void button8_Click(object sender, EventArgs e)
+        {
+            // Escribir un 8 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("8" + Environment.NewLine);
+        }
+
+        private void button9_Click(object sender, EventArgs e)
+        {
+            // Escribir un 9 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("9" + Environment.NewLine);  
+        }
+
+        private void button0_Click(object sender, EventArgs e)
+        {
+            // Escribir un 0 en el songSelectorTextBox
+            songSelectorTextBox.AppendText("0" + Environment.NewLine);
+        }
+
+        private void okButton_Click(object sender, EventArgs e)
+        {
+            // Obtener todas las líneas no vacías
+            var lines = songSelectorTextBox.Text
+                .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (lines.Length == 0)
+            {
+                statusTextBox.Text = "No se ha seleccionado ninguna canción." + Environment.NewLine;
+                return;
+            }
+
+            // Tomar la última línea no vacía como el número de canción
+            string input = lines[lines.Length - 1].Trim();
+
+            int index;
+            if (int.TryParse(input, out index))
+            {
+                // El usuario ingresa 1 para la primera canción, etc.
+                if (index >= 1 && index <= musicComboBox.Items.Count)
+                {
+                    musicComboBox.SelectedIndex = index - 1;
+                    statusTextBox.Text = "Canción seleccionada: " + musicComboBox.Items[index - 1].ToString() + Environment.NewLine;
+                }
+                else
+                {
+                    statusTextBox.Text = "Índice fuera de rango. Selecciona un número válido." + Environment.NewLine;
+                    return;
+                }
+            }
+            else
+            {
+                statusTextBox.Text = "Entrada inválida. Ingresa solo números." + Environment.NewLine;
+                return;
+            }
+
+            // Inhabilitar los botones del button0 a button9
+            for (int i = 0; i <= 9; i++)
+            {
+                Button button = this.Controls.Find("button" + i, true).FirstOrDefault() as Button;
+                if (button != null)
+                {
+                    button.Enabled = false; // Deshabilitar el botón
+                    button.BackColor = Color.LightGray;
+                }
+            }
+            // Habilitar el botón de limpiar
+            clearButton.Enabled = true; // Habilitar el botón de limpiar
+        }
+
+
+
+        private void clearButton_Click(object sender, EventArgs e)
+        {
+            songSelectorTextBox.Text = ""; // Limpiar el TextBox de selección de canción
+                                           // Habilitar los botones del button0 a button9
+                                           // Inhabilitar los botones del button0 a button9
+            for (int i = 0; i <= 9; i++)
+            {
+                Button button = this.Controls.Find("button" + i, true).FirstOrDefault() as Button;
+                if (button != null)
+                {
+                    button.Enabled = true; // Deshabilitar el botón
+                    button.BackColor = SystemColors.Control; // Restaurar el color de fondo original
+                }
+            }
+        }
     }
 }
