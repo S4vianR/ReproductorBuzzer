@@ -99,5 +99,14 @@
   <ItemGroup>
     <None Include="Properties\img\nokia.jpg" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\nokiaSound.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Properties\music\nokia.wav" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Properties\music\Let-It-Snow.wav" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

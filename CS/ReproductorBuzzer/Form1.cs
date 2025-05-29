@@ -14,6 +14,14 @@ namespace ReproductorBuzzer
     public partial class Form1 : Form
     {
         SerialPort arduinoPort;
+        Boolean usingLocalMusic = false; // Variable para saber si se está usando música local o no
+        private string localMusicPath = null;
+        private System.Media.SoundPlayer localPlayer = null; // Para WAV
+        // Para MP3, descomenta la siguiente línea y agrega la referencia a Windows Media Player
+        // private WMPLib.WindowsMediaPlayer wmpPlayer = null;
+
+        // Inicialiar una variable para guardar las canciones que se tienen en Properties.Resources se deben cargar dinámicamente
+        // en el constructor o en el evento Load del formulario, no es necesario declararla aquí.
 
         public Form1()
         {
@@ -22,12 +30,27 @@ namespace ReproductorBuzzer
 
             arduinoPort = new SerialPort();
             arduinoPort.BaudRate = 9600; // La velocidad debe coincidir con la de Arduino (Serial.begin(9600))
-            arduinoPort.PortName = "COM5"; // Establecemos COM5 como el puerto predeterminado
+            arduinoPort.PortName = "COM5"; // Establecemos COM5 como el puerto predeterminadoxx
             arduinoPort.DataReceived += ArduinoPort_DataReceived; // Suscribe el evento para cuando Arduino envía datos
 
             // Deshabilitar botones de control de melodía hasta que estemos conectados
             reproducirButton.Enabled = false;
             pausarButton.Enabled = false;
+
+            // Obtener dinámicamente todas las pistas de audio de Properties.Resources
+            var canciones = typeof(Properties.Resources)
+                .GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .Where(p => p.PropertyType == typeof(System.IO.UnmanagedMemoryStream)) // Cambiado aquí
+                .Select(p => new { Nombre = p.Name, Datos = (System.IO.UnmanagedMemoryStream)p.GetValue(null, null) })
+                .ToList();
+
+            foreach (var cancion in canciones)
+            {
+                musicComboBox.Items.Add(cancion.Nombre);
+            }
+
+            musicComboBox.SelectedIndex = -1; // No seleccionar ninguna canción al inicio
+            usingLocalMusic = false; // Inicializar la variable para saber si se está usando música local o no
         }
 
         // Si no tienes un botón "Conectar" y quieres autoconectar,
@@ -64,6 +87,7 @@ namespace ReproductorBuzzer
         // Método auxiliar para intentar la conexión a Arduino
         private void AttemptConnectArduino()
         {
+            usingLocalMusic = false; // Asegurarse de que no se está usando música local al intentar conectar a Arduino
             try
             {
                 arduinoPort.Open();
@@ -112,11 +136,24 @@ namespace ReproductorBuzzer
 
         private void reproducirButton_Click(object sender, EventArgs e)
         {
-            if (arduinoPort.IsOpen)
+            if (usingLocalMusic && localMusicPath != null)
             {
                 try
                 {
-                    arduinoPort.Write("P"); // Envía el comando 'P' a Arduino (Play)
+                    localPlayer?.Play();
+                    // Para MP3: wmpPlayer?.controls.play();
+                    statusTextBox.Text = "Reproduciendo música local: " + System.IO.Path.GetFileName(localMusicPath) + Environment.NewLine;
+                }
+                catch (Exception ex)
+                {
+                    statusTextBox.Text = "Error al reproducir música local: " + ex.Message + Environment.NewLine;
+                }
+            }
+            else if (arduinoPort.IsOpen)
+            {
+                try
+                {
+                    arduinoPort.Write("P");
                     statusTextBox.Text = "Comando 'P' enviado: Iniciar melodía." + Environment.NewLine;
                 }
                 catch (Exception ex)
@@ -126,18 +163,31 @@ namespace ReproductorBuzzer
             }
             else
             {
-                statusTextBox.Text = "No conectado a Arduino. Por favor, intenta conectar." + Environment.NewLine;
-                AttemptConnectArduino(); // Intenta reconectar si no está conectado
+                statusTextBox.Text = "No conectado a Arduino. Usando música local" + Environment.NewLine;
+                usingLocalMusic = true;
             }
         }
 
         private void pausarButton_Click(object sender, EventArgs e)
         {
-            if (arduinoPort.IsOpen)
+            if (usingLocalMusic && localMusicPath != null)
             {
                 try
                 {
-                    arduinoPort.Write("S"); // Envía el comando 'S' a Arduino (Stop)
+                    localPlayer?.Stop();
+                    // Para MP3: wmpPlayer?.controls.pause();
+                    statusTextBox.Text = "Música local pausada." + Environment.NewLine;
+                }
+                catch (Exception ex)
+                {
+                    statusTextBox.Text = "Error al pausar música local: " + ex.Message + Environment.NewLine;
+                }
+            }
+            else if (arduinoPort.IsOpen)
+            {
+                try
+                {
+                    arduinoPort.Write("S");
                     statusTextBox.Text = "Comando 'S' enviado: Detener melodía." + Environment.NewLine;
                 }
                 catch (Exception ex)
@@ -147,10 +197,11 @@ namespace ReproductorBuzzer
             }
             else
             {
-                statusTextBox.Text = "No conectado a Arduino. Por favor, intenta conectar." + Environment.NewLine;
-                AttemptConnectArduino(); // Intenta reconectar si no está conectado
+                statusTextBox.Text = "No conectado a Arduino. Usando música local" + Environment.NewLine;
+                usingLocalMusic = true;
             }
         }
+
 
         // Se ejecuta cuando el formulario se está cerrando
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -160,5 +211,85 @@ namespace ReproductorBuzzer
                 arduinoPort.Close(); // Asegúrate de cerrar el puerto serial al cerrar la aplicación
             }
         }
+
+        private void musicComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // Escribir en el statusTextBox el nombre de la canción seleccionada
+            if (musicComboBox.SelectedItem != null)
+            {
+                string selectedSong = musicComboBox.SelectedItem.ToString();
+                statusTextBox.Text = "Canción seleccionada: " + selectedSong + Environment.NewLine;
+            }
+            else
+            {
+                statusTextBox.Text = "No se ha seleccionado ninguna canción." + Environment.NewLine;
+            }
+        }
+
+        private void localMusicButton_Click(object sender, EventArgs e)
+        {
+            if (musicComboBox.SelectedItem != null)
+            {
+                // Usar la canción seleccionada del ComboBox (recurso del proyecto)
+                string nombreRecurso = musicComboBox.SelectedItem.ToString();
+                string tempFile = GuardarRecursoComoArchivoTemporal(nombreRecurso);
+
+                if (tempFile != null)
+                {
+                    localMusicPath = tempFile;
+                    usingLocalMusic = true;
+                    statusTextBox.Text = "Música local (recurso) seleccionada: " + nombreRecurso + Environment.NewLine;
+                    localPlayer = new System.Media.SoundPlayer(localMusicPath);
+                    reproducirButton.Enabled = true;
+                    pausarButton.Enabled = true;
+                }
+                else
+                {
+                    statusTextBox.Text = "No se pudo cargar el recurso seleccionado." + Environment.NewLine;
+                }
+            }
+            else
+            {
+                // Si no hay selección, permite elegir un archivo local como antes
+                using (OpenFileDialog ofd = new OpenFileDialog())
+                {
+                    ofd.Filter = "Archivos de audio (*.wav)|*.wav";
+                    ofd.Title = "Selecciona una canción local";
+
+                    if (ofd.ShowDialog() == DialogResult.OK)
+                    {
+                        localMusicPath = ofd.FileName;
+                        usingLocalMusic = true;
+                        statusTextBox.Text = "Música local seleccionada: " + System.IO.Path.GetFileName(localMusicPath) + Environment.NewLine;
+                        localPlayer = new System.Media.SoundPlayer(localMusicPath);
+                        reproducirButton.Enabled = true;
+                        pausarButton.Enabled = true;
+                    }
+                }
+            }
+        }
+
+
+        private string GuardarRecursoComoArchivoTemporal(string nombreRecurso)
+        {
+            var propiedad = typeof(Properties.Resources)
+                .GetProperty(nombreRecurso, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+
+            if (propiedad == null)
+                return null;
+
+            var stream = propiedad.GetValue(null, null) as System.IO.UnmanagedMemoryStream;
+            if (stream == null)
+                return null;
+
+            string tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), nombreRecurso + ".wav");
+            using (var fileStream = new System.IO.FileStream(tempPath, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+            {
+                stream.Position = 0;
+                stream.CopyTo(fileStream);
+            }
+            return tempPath;
+        }
+
     }
 }
